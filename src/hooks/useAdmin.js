@@ -1,31 +1,40 @@
-import { useState, useCallback } from 'react';
-
-const ADMINS = [
-  { username: 'daniel', password: 'daniel2024' },
-  { username: 'admin', password: 'mollo2024' },
-];
-
-const SESSION_KEY = 'music_admin_session';
+import { useState, useCallback, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 export function useAdmin() {
-  const [isAdmin, setIsAdmin] = useState(() => {
-    return sessionStorage.getItem(SESSION_KEY) === 'true';
-  });
+  const [isAdmin, setIsAdmin]       = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
 
-  const login = useCallback((username, password) => {
-    const match = ADMINS.find(a => a.username === username && a.password === password);
-    if (match) {
-      sessionStorage.setItem(SESSION_KEY, 'true');
-      setIsAdmin(true);
-      return true;
-    }
-    return false;
+  useEffect(() => {
+    // Verificar sesión existente al montar
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setIsAdmin(!!session);
+      })
+      .catch(() => {
+        // Si Supabase falla, arrancamos como visitante normal
+        setIsAdmin(false);
+      })
+      .finally(() => {
+        setAuthLoading(false);
+      });
+
+    // Escuchar cambios de auth (login / logout)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setIsAdmin(!!session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const logout = useCallback(() => {
-    sessionStorage.removeItem(SESSION_KEY);
-    setIsAdmin(false);
+  const login = useCallback(async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return !error;
   }, []);
 
-  return { isAdmin, login, logout };
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
+  }, []);
+
+  return { isAdmin, login, logout, authLoading };
 }

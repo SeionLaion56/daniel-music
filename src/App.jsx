@@ -13,7 +13,8 @@ import { useSiteContent } from './hooks/useSiteContent';
 import './App.css';
 
 export default function App() {
-  const { isAdmin, login, logout } = useAdmin();
+  // ── Todos los hooks PRIMERO, sin excepción ──
+  const { isAdmin, login, logout, authLoading } = useAdmin();
   const { content, updateContent, save, hasChanges } = useSiteContent();
   const [showLoginModal, setShowLoginModal] = useState(false);
 
@@ -21,13 +22,24 @@ export default function App() {
     updateContent(path, value);
   }, [updateContent]);
 
-  const handleLogin = useCallback((username, password) => {
-    const success = login(username, password);
+  const handleLogin = useCallback(async (email, password) => {
+    const success = await login(email, password);
     if (success) setShowLoginModal(false);
     return success;
   }, [login]);
 
+  const handleBackgroundChange = useCallback((bg) => {
+    updateContent(['background'], bg);
+  }, [updateContent]);
+
   const spacing = content.sectionSpacing ?? 'normal';
+
+  // ── Returns condicionales DESPUÉS de todos los hooks ──
+  if (authLoading) return (
+    <div className="fixed inset-0 flex items-center justify-center bg-gray-950">
+      <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+    </div>
+  );
 
   return (
     <>
@@ -109,7 +121,7 @@ export default function App() {
             {isAdmin && (
               <BackgroundUploader
                 background={content.background}
-                onBackgroundChange={bg => handleUpdate(['background'], bg)}
+                onBackgroundChange={handleBackgroundChange}
               />
             )}
             {!isAdmin && (

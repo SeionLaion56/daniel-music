@@ -1,18 +1,17 @@
 import { useState } from 'react';
 
 export function LoginModal({ onLogin, onClose }) {
-  const [username, setUsername] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    await new Promise(r => setTimeout(r, 300));
-    const success = onLogin(username, password);
-    if (!success) setError('Usuario o contraseña incorrectos');
+    const success = await onLogin(email, password);
+    if (!success) setError('Email o contraseña incorrectos');
     setLoading(false);
   };
 
@@ -24,13 +23,13 @@ export function LoginModal({ onLogin, onClose }) {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label className="text-white/70 text-sm block mb-1">Usuario</label>
+            <label className="text-white/70 text-sm block mb-1">Email</label>
             <input
-              type="text"
-              value={username}
-              onChange={e => setUsername(e.target.value)}
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
               autoFocus
-              autoComplete="username"
+              autoComplete="email"
               className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2.5 text-white outline-none focus:ring-2 focus:ring-indigo-400/60 transition-all"
             />
           </div>
@@ -55,7 +54,7 @@ export function LoginModal({ onLogin, onClose }) {
           <div className="flex gap-3 mt-1">
             <button
               type="submit"
-              disabled={loading || !username || !password}
+              disabled={loading || !email || !password}
               className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Verificando...' : 'Ingresar'}

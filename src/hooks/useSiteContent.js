@@ -1,7 +1,5 @@
-import { useState, useCallback } from 'react';
-
-const STORAGE_KEY = 'daniel_music_content';
-const CONTENT_VERSION = 2; // incrementar cuando se agregan campos nuevos
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { fetchContent, saveContent } from '../lib/supabaseContent';
 
 const DEFAULT_CONTENT = {
   siteTitle: 'Daniel - Clases de Música',
@@ -68,77 +66,81 @@ function deepSet(obj, path, value) {
   return copy;
 }
 
-function mergeClass(saved, def) {
+function mergeClass(saved) {
   return {
-    ...def,
+    titleStyle: {},
+    descriptionStyle: {},
     ...saved,
-    titleStyle: saved.titleStyle ?? {},
-    descriptionStyle: saved.descriptionStyle ?? {},
   };
 }
 
-function loadContent() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const p = JSON.parse(stored);
-      // Si los datos son de una versión anterior, migramos preservando lo que se pueda
-      // pero garantizando que todos los campos nuevos existan
-      if ((p._version ?? 1) < CONTENT_VERSION) {
-        console.info('[useSiteContent] Migrando datos al formato v' + CONTENT_VERSION);
-      }
-      return {
-        ...DEFAULT_CONTENT,
-        ...p,
-        siteTitleStyle: p.siteTitleStyle ?? {},
-        taglineStyle: p.taglineStyle ?? {},
-        sectionSpacing: p.sectionSpacing ?? 'normal',
-        background: { ...DEFAULT_CONTENT.background, ...p.background },
-        hero: {
-          ...DEFAULT_CONTENT.hero,
-          ...p.hero,
-          titleStyle: p.hero?.titleStyle ?? {},
-          subtitleStyle: p.hero?.subtitleStyle ?? {},
-        },
-        about: {
-          ...DEFAULT_CONTENT.about,
-          ...p.about,
-          titleStyle: p.about?.titleStyle ?? {},
-          textStyle: p.about?.textStyle ?? {},
-        },
-        classesTitle: p.classesTitle ?? 'Clases',
-        classesTitleStyle: p.classesTitleStyle ?? {},
-        classes: (p.classes ?? DEFAULT_CONTENT.classes).map(c => mergeClass(c, {})),
-        enrollButton: {
-          ...DEFAULT_CONTENT.enrollButton,
-          ...p.enrollButton,
-          tagline: p.enrollButton?.tagline ?? 'Dá el primer paso hacia tu camino musical',
-          taglineStyle: p.enrollButton?.taglineStyle ?? {},
-        },
-      };
-    }
-  } catch {}
-  return DEFAULT_CONTENT;
+function mergeWithDefaults(p) {
+  if (!p || typeof p !== 'object') return DEFAULT_CONTENT;
+  return {
+    ...DEFAULT_CONTENT,
+    ...p,
+    siteTitleStyle:     p.siteTitleStyle     ?? {},
+    taglineStyle:       p.taglineStyle       ?? {},
+    sectionSpacing:     p.sectionSpacing     ?? 'normal',
+    background: { ...DEFAULT_CONTENT.background, ...(p.background ?? {}) },
+    hero: {
+      ...DEFAULT_CONTENT.hero,
+      ...(p.hero ?? {}),
+      titleStyle:    p.hero?.titleStyle    ?? {},
+      subtitleStyle: p.hero?.subtitleStyle ?? {},
+    },
+    about: {
+      ...DEFAULT_CONTENT.about,
+      ...(p.about ?? {}),
+      titleStyle: p.about?.titleStyle ?? {},
+      textStyle:  p.about?.textStyle  ?? {},
+    },
+    classesTitle:      p.classesTitle      ?? 'Clases',
+    classesTitleStyle: p.classesTitleStyle ?? {},
+    classes: (p.classes ?? DEFAULT_CONTENT.classes).map(mergeClass),
+    enrollButton: {
+      ...DEFAULT_CONTENT.enrollButton,
+      ...(p.enrollButton ?? {}),
+      tagline:      p.enrollButton?.tagline      ?? 'Dá el primer paso hacia tu camino musical',
+      taglineStyle: p.enrollButton?.taglineStyle ?? {},
+    },
+  };
 }
 
 export function useSiteContent() {
-  const [content, setContent] = useState(loadContent);
+  const [content, setContent]     = useState(DEFAULT_CONTENT);
   const [hasChanges, setHasChanges] = useState(false);
+  const [loading, setLoading]     = useState(true);
+  const contentRef                = useRef(content);
+
+  // Mantener ref sincronizada para acceso en callbacks async
+  useEffect(() => { contentRef.current = content; }, [content]);
+
+  // Cargar contenido desde Supabase al montar
+  useEffect(() => {
+    fetchContent()
+      .then(data => {
+        if (data && Object.keys(data).length > 0) {
+          setContent(mergeWithDefaults(data));
+        }
+      })
+      .catch(() => {}) // Si falla, usa DEFAULT_CONTENT
+      .finally(() => setLoading(false));
+  }, []);
 
   const updateContent = useCallback((path, value) => {
     setContent(prev => deepSet(prev, path, value));
     setHasChanges(true);
   }, []);
 
-  const save = useCallback(() => {
-    setContent(prev => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...prev, _version: CONTENT_VERSION }));
-      } catch {}
-      return prev;
-    });
-    setHasChanges(false);
+  const save = useCallback(async () => {
+    try {
+      await saveContent(contentRef.current);
+      setHasChanges(false);
+    } catch {
+      alert('Error al guardar. Verificá tu conexión e intentá de nuevo.');
+    }
   }, []);
 
-  return { content, updateContent, save, hasChanges };
+  return { content, updateContent, save, hasChanges, loading };
 }
