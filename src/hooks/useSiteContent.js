@@ -48,6 +48,11 @@ const DEFAULT_CONTENT = {
       image: null,
     },
   ],
+  // Orden de las secciones fijas (se puede reordenar)
+  sectionOrder: ['hero', 'about', 'classes', 'enroll'],
+  // Secciones personalizadas añadidas por el admin
+  customSections: {},
+
   enrollButton: {
     text: 'Inscríbete Ahora',
     url: '',
@@ -98,6 +103,8 @@ function mergeWithDefaults(p) {
     classesTitle:      p.classesTitle      ?? 'Clases',
     classesTitleStyle: p.classesTitleStyle ?? {},
     classes: (p.classes ?? DEFAULT_CONTENT.classes).map(mergeClass),
+    sectionOrder:   p.sectionOrder   ?? ['hero', 'about', 'classes', 'enroll'],
+    customSections: p.customSections ?? {},
     enrollButton: {
       ...DEFAULT_CONTENT.enrollButton,
       ...(p.enrollButton ?? {}),
