@@ -30,50 +30,59 @@ function getEmbedUrl(info) {
   }
 }
 
-const HEIGHTS = {
-  sm: { instagram: 400, twitter: 310, facebook: 260 },
-  md: { instagram: 530, twitter: 410, facebook: 350 },
-  lg: { instagram: 680, twitter: 540, facebook: 470 },
-};
-
+// Altura base del iframe por plataforma (tamaño natural del embed)
+const BASE_H = { instagram: 530, twitter: 430, facebook: 370 };
 const PLATFORM_LABELS = { instagram: 'Instagram', twitter: 'X / Twitter', facebook: 'Facebook' };
 
+// Scale real: el iframe se renderiza a tamaño natural y se hace zoom con CSS
+const SCALES = { sm: 0.65, md: 1.0, lg: 1.38 };
 const SIZE_LABELS = { sm: 'Pequeño', md: 'Normal', lg: 'Grande' };
 
 function EmbedItem({ url, size = 'md' }) {
   const info     = parseSocialUrl(url);
   const embedUrl = getEmbedUrl(info);
-  const heights  = HEIGHTS[size];
+  const scale    = SCALES[size] ?? 1;
+  const baseH    = BASE_H[info?.platform] ?? 460;
 
   if (!url) return (
-    <div className="flex items-center justify-center h-40 text-white/25 text-sm rounded-xl bg-white/5">Sin URL</div>
+    <div className="flex items-center justify-center h-36 text-white/25 text-sm rounded-xl bg-white/5">Sin URL</div>
   );
 
   if (!embedUrl) return (
-    <div className="glass rounded-xl p-6 text-center">
-      <p className="text-white/40 text-sm mb-2">No se puede previsualizar</p>
+    <div className="glass rounded-xl p-5 text-center">
+      <p className="text-white/40 text-sm mb-2">No se puede previsualizar este enlace</p>
       <a href={url} target="_blank" rel="noopener noreferrer nofollow"
         className="text-indigo-400 text-xs break-all hover:underline">{url}</a>
     </div>
   );
 
+  // El contenedor tiene la altura visual (baseH * scale)
+  // El iframe se escala dentro con transform, sin que se corte el contenido
+  const containerH = Math.round(baseH * scale);
+
   return (
-    <div className="rounded-xl overflow-hidden shadow-2xl bg-white/5 border border-white/10">
-      <iframe
-        key={embedUrl + size}
-        src={embedUrl}
-        className="w-full"
-        style={{
-          height: `${heights[info?.platform] ?? 420}px`,
-          border: 'none',
-          transition: 'height 300ms ease',
-        }}
-        frameBorder="0"
-        scrolling="no"
-        allowTransparency="true"
-        loading="lazy"
-        title={`Post de ${PLATFORM_LABELS[info?.platform] || 'redes'}`}
-      />
+    <div
+      className="rounded-xl overflow-hidden shadow-2xl bg-white/5 border border-white/10"
+      style={{ height: `${containerH}px` }}
+    >
+      <div style={{
+        transform: `scale(${scale})`,
+        transformOrigin: 'top left',
+        // Para que el iframe llene el ancho del contenedor tras el scale
+        width: `${(100 / scale).toFixed(2)}%`,
+        height: `${baseH}px`,
+      }}>
+        <iframe
+          key={embedUrl + size}
+          src={embedUrl}
+          style={{ width: '100%', height: `${baseH}px`, border: 'none', display: 'block' }}
+          frameBorder="0"
+          scrolling="no"
+          allowTransparency="true"
+          loading="lazy"
+          title={`Post de ${PLATFORM_LABELS[info?.platform] || 'redes'}`}
+        />
+      </div>
     </div>
   );
 }
@@ -100,34 +109,35 @@ export function SocialEmbedBlock({ section, isAdmin, onUpdate }) {
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4">
 
-      {/* Carousel */}
       {posts.length > 0 ? (
-        <Carousel
-          items={posts}
-          renderItem={(post) => <EmbedItem url={post.url} size={size} />}
-          emptyMessage="Sin publicaciones"
-        />
+        <>
+          <Carousel
+            items={posts}
+            renderItem={(post) => <EmbedItem url={post.url} size={size} />}
+            emptyMessage="Sin publicaciones"
+          />
+
+          {/* Control de tamaño */}
+          {isAdmin && (
+            <div className="flex justify-center gap-1 mt-3">
+              {Object.entries(SIZE_LABELS).map(([s, label]) => (
+                <button
+                  key={s}
+                  onClick={() => onUpdate('size', s)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    size === s ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/70'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       ) : (
         <div className="glass rounded-xl p-8 text-center text-white/30">
           <div className="text-3xl mb-3">📲</div>
           <p className="text-sm">{isAdmin ? 'Agregá el link de un post' : 'Publicaciones de redes sociales'}</p>
-        </div>
-      )}
-
-      {/* Control de tamaño — visible en todos los modos si hay posts */}
-      {posts.length > 0 && isAdmin && (
-        <div className="flex justify-center gap-1 mt-3">
-          {Object.entries(SIZE_LABELS).map(([s, label]) => (
-            <button
-              key={s}
-              onClick={() => onUpdate('size', s)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                size === s ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/70'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
         </div>
       )}
 

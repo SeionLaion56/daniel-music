@@ -3,8 +3,9 @@ import { Carousel } from '../../ui/Carousel';
 import { EditableText } from '../../ui/EditableText';
 import { uploadToStorage } from '../../../lib/supabaseStorage';
 
-const IMG_HEIGHTS = { sm: '200px', md: '320px', lg: '500px' };
-const SIZE_LABELS  = { sm: 'Pequeño', md: 'Normal', lg: 'Grande' };
+// object-fit: contain → imagen completa siempre visible, sin corte
+const IMG_MAX_H = { sm: '180px', md: '310px', lg: '490px' };
+const SIZE_LABELS = { sm: 'Pequeño', md: 'Normal', lg: 'Grande' };
 
 export function GalleryBlock({ section, isAdmin, onUpdate }) {
   const id     = useId();
@@ -38,27 +39,35 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4">
 
-      {/* Carousel de fotos */}
       {images.length > 0 ? (
         <>
           <Carousel
             items={images}
             renderItem={(img) => (
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col items-center gap-3">
+                {/* Imagen con contain: siempre se ve entera, sin corte */}
                 <div
-                  className="overflow-hidden rounded-xl shadow-xl"
-                  style={{ height: IMG_HEIGHTS[size], transition: 'height 300ms ease' }}
+                  className="w-full flex items-center justify-center rounded-xl overflow-hidden bg-black/20"
+                  style={{
+                    maxHeight: IMG_MAX_H[size],
+                    transition: 'max-height 300ms ease',
+                  }}
                 >
                   <img
                     src={img.url}
                     alt={img.caption || ''}
-                    className="w-full h-full object-cover"
+                    className="w-full rounded-xl shadow-xl"
+                    style={{
+                      maxHeight: IMG_MAX_H[size],
+                      objectFit: 'contain',
+                      transition: 'max-height 300ms ease',
+                    }}
                   />
                 </div>
 
                 {/* Pie de foto editable */}
                 {(img.caption || isAdmin) && (
-                  <div className="text-center px-2">
+                  <div className="w-full text-center px-2">
                     <EditableText
                       value={img.caption || 'Pie de foto...'}
                       onChange={v => updateCaption(img.id, v)}
@@ -99,7 +108,7 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
         </div>
       )}
 
-      {/* Panel admin: miniaturas + agregar */}
+      {/* Panel admin */}
       {isAdmin && (
         <div className="mt-4 glass rounded-xl p-4 flex flex-col gap-3">
           <p className="text-white/50 text-xs font-medium uppercase tracking-wider">
@@ -124,13 +133,8 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
             className="flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80 text-sm cursor-pointer transition-all"
           >
             <span className="text-lg">+</span> Agregar fotos
-            <input
-              id={id} type="file"
-              accept="image/png,image/jpeg,image/webp"
-              multiple
-              onChange={handleAddImages}
-              className="hidden"
-            />
+            <input id={id} type="file" accept="image/png,image/jpeg,image/webp"
+              multiple onChange={handleAddImages} className="hidden" />
           </label>
         </div>
       )}
