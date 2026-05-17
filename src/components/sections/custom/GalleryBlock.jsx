@@ -3,9 +3,9 @@ import { Carousel } from '../../ui/Carousel';
 import { EditableText } from '../../ui/EditableText';
 import { uploadToStorage } from '../../../lib/supabaseStorage';
 
-// Contenedor con altura fija + scale en la imagen para que S/M/L sean distintos
-const CONTAINER_H = 300; // px — fijo siempre
-const IMG_SCALE   = { sm: 0.58, md: 1.00, lg: 1.52 };
+// objectFit: cover → la imagen SIEMPRE llena el contenedor
+// Al cambiar la altura del contenedor, la imagen visible crece/decrece realmente
+const IMG_H = { sm: 160, md: 280, lg: 440 };
 const SIZE_LABELS = { sm: 'Pequeño', md: 'Normal', lg: 'Grande' };
 
 export function GalleryBlock({ section, isAdmin, onUpdate }) {
@@ -42,21 +42,22 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
             items={images}
             renderItem={(img) => (
               <div className="flex flex-col items-center gap-3">
-                {/* Contenedor fijo — la imagen se escala con transform */}
+                {/* Contenedor con altura variable — cover llena siempre el espacio */}
                 <div
-                  className="w-full flex items-center justify-center rounded-xl overflow-hidden bg-black/15"
-                  style={{ height: `${CONTAINER_H}px` }}
+                  className="w-full rounded-xl overflow-hidden"
+                  style={{
+                    height: `${IMG_H[size]}px`,
+                    transition: 'height 300ms ease',
+                  }}
                 >
                   <img
                     src={img.url}
                     alt={img.caption || ''}
                     style={{
-                      maxWidth: '100%',
-                      maxHeight: '100%',
-                      objectFit: 'contain',
-                      transform: `scale(${IMG_SCALE[size]})`,
-                      transformOrigin: 'center center',
-                      transition: 'transform 300ms ease',
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      objectPosition: 'center',
                     }}
                   />
                 </div>
@@ -80,17 +81,10 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
           />
 
           {isAdmin && (
-            <div className="flex justify-center gap-3 mt-2">
+            <div className="flex justify-center gap-1 mt-3">
               {Object.entries(SIZE_LABELS).map(([s, label]) => (
-                <button
-                  key={s}
-                  onClick={() => onUpdate('size', s)}
-                  className="text-xs font-semibold transition-all"
-                  style={{
-                    color: size === s ? 'white' : 'rgba(255,255,255,0.4)',
-                    textShadow: '0 1px 4px rgba(0,0,0,0.7)',
-                    fontWeight: size === s ? 700 : 400,
-                  }}
+                <button key={s} onClick={() => onUpdate('size', s)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${size === s ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/70'}`}
                 >
                   {label}
                 </button>

@@ -83,20 +83,22 @@ export function Carousel({ items, renderItem, emptyMessage = 'Sin elementos', cl
         </div>
       </div>
 
-      {/* Botones superpuestos — absolutos, pequeños, semi-transparentes */}
+      {/* Flechas puras — solo ícono, sin fondo ni contenedor */}
       {total > 1 && (
         <>
           <button
             onClick={() => goTo(current - 1)}
             aria-label="Anterior"
-            className="absolute left-2 top-[42%] -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-black/45 hover:bg-black/70 text-white backdrop-blur-sm shadow-md transition-all hover:scale-110 active:scale-95"
+            className="absolute left-2 top-[42%] -translate-y-1/2 z-10 text-white/80 hover:text-white transition-all hover:scale-125 active:scale-95"
+            style={{ filter: 'drop-shadow(0 1px 4px rgba(0,0,0,0.9))' }}
           >
             <ChevronLeft />
           </button>
           <button
             onClick={() => goTo(current + 1)}
             aria-label="Siguiente"
-            className="absolute right-2 top-[42%] -translate-y-1/2 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-black/45 hover:bg-black/70 text-white backdrop-blur-sm shadow-md transition-all hover:scale-110 active:scale-95"
+            className="absolute right-2 top-[42%] -translate-y-1/2 z-10 text-white/80 hover:text-white transition-all hover:scale-125 active:scale-95"
+            style={{ filter: 'drop-shadow(0 1px 4px rgba(0,0,0,0.9))' }}
           >
             <ChevronRight />
           </button>

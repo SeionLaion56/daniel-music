@@ -106,19 +106,12 @@ export function SocialEmbedBlock({ section, isAdmin, onUpdate }) {
               emptyMessage="Sin publicaciones"
             />
 
-            {/* Botones superpuestos encima del carousel — sin contenedor ni borde */}
+            {/* Botones S/M/L debajo del carousel con estética pill */}
             {isAdmin && (
-              <div className="absolute top-2 right-10 z-20 flex gap-2">
+              <div className="flex justify-center gap-1 mt-3">
                 {Object.entries(SIZE_LABELS).map(([s, label]) => (
-                  <button
-                    key={s}
-                    onClick={() => onUpdate('size', s)}
-                    className="text-xs font-semibold transition-all"
-                    style={{
-                      color: size === s ? 'white' : 'rgba(255,255,255,0.4)',
-                      textShadow: size === s ? '0 1px 4px rgba(0,0,0,0.8)' : '0 1px 3px rgba(0,0,0,0.6)',
-                      fontWeight: size === s ? 700 : 400,
-                    }}
+                  <button key={s} onClick={() => onUpdate('size', s)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${size === s ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/70'}`}
                   >
                     {label}
                   </button>
