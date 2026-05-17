@@ -1,40 +1,81 @@
 import { useState, useCallback } from 'react';
-import { LogoUploader } from './components/LogoUploader';
+import { LogoUploader }    from './components/LogoUploader';
 import { BackgroundUploader } from './components/BackgroundUploader';
-import { AdminBar } from './components/admin/AdminBar';
-import { LoginModal } from './components/admin/LoginModal';
-import { HeroSection } from './components/sections/HeroSection';
-import { AboutSection } from './components/sections/AboutSection';
-import { ClassesSection } from './components/sections/ClassesSection';
-import { EnrollSection } from './components/sections/EnrollSection';
-import { EditableText } from './components/ui/EditableText';
-import { useAdmin } from './hooks/useAdmin';
-import { useSiteContent } from './hooks/useSiteContent';
+import { AdminBar }        from './components/admin/AdminBar';
+import { LoginModal }      from './components/admin/LoginModal';
+import { HeroSection }     from './components/sections/HeroSection';
+import { AboutSection }    from './components/sections/AboutSection';
+import { ClassesSection }  from './components/sections/ClassesSection';
+import { EnrollSection }   from './components/sections/EnrollSection';
+import { SectionWrapper }  from './components/sections/SectionWrapper';
+import { CustomSectionRenderer } from './components/sections/custom/CustomSectionRenderer';
+import { EditableText }    from './components/ui/EditableText';
+import { useAdmin }        from './hooks/useAdmin';
+import { useSiteContent }  from './hooks/useSiteContent';
 import './App.css';
 
+const BUILTIN = new Set(['hero', 'about', 'classes', 'enroll']);
+
 export default function App() {
-  // ── Todos los hooks PRIMERO, sin excepción ──
   const { isAdmin, login, logout, authLoading } = useAdmin();
   const { content, updateContent, save, hasChanges } = useSiteContent();
   const [showLoginModal, setShowLoginModal] = useState(false);
 
+  // ── Callbacks ──────────────────────────────────────────────────────────────
   const handleUpdate = useCallback((path, value) => {
     updateContent(path, value);
   }, [updateContent]);
 
   const handleLogin = useCallback(async (email, password) => {
-    const success = await login(email, password);
-    if (success) setShowLoginModal(false);
-    return success;
+    const ok = await login(email, password);
+    if (ok) setShowLoginModal(false);
+    return ok;
   }, [login]);
 
   const handleBackgroundChange = useCallback((bg) => {
     updateContent(['background'], bg);
   }, [updateContent]);
 
-  const spacing = content.sectionSpacing ?? 'normal';
+  // Agregar sección custom después de una posición
+  const handleAddSection = useCallback((afterId, type, defaults) => {
+    const id = `custom-${Date.now()}`;
+    const newSection = { id, type, ...defaults };
+    const newCustomSections = { ...content.customSections, [id]: newSection };
+    // Insertar en sectionOrder justo después de afterId
+    const order = [...content.sectionOrder];
+    const idx   = order.indexOf(afterId);
+    order.splice(idx + 1, 0, id);
+    updateContent(['customSections'], newCustomSections);
+    updateContent(['sectionOrder'], order);
+  }, [content.customSections, content.sectionOrder, updateContent]);
 
-  // ── Returns condicionales DESPUÉS de todos los hooks ──
+  // Actualizar campo de una sección custom
+  const handleUpdateCustom = useCallback((id, key, value) => {
+    updateContent(['customSections', id, key], value);
+  }, [updateContent]);
+
+  // Mover sección en el orden
+  const handleMove = useCallback((id, direction) => {
+    const order = [...content.sectionOrder];
+    const i = order.indexOf(id);
+    const j = direction === 'up' ? i - 1 : i + 1;
+    if (j < 0 || j >= order.length) return;
+    [order[i], order[j]] = [order[j], order[i]];
+    updateContent(['sectionOrder'], order);
+  }, [content.sectionOrder, updateContent]);
+
+  // Eliminar sección custom
+  const handleDeleteCustom = useCallback((id) => {
+    const newOrder = content.sectionOrder.filter(s => s !== id);
+    const newCustom = { ...content.customSections };
+    delete newCustom[id];
+    updateContent(['sectionOrder'], newOrder);
+    updateContent(['customSections'], newCustom);
+  }, [content.sectionOrder, content.customSections, updateContent]);
+
+  const spacing  = content.sectionSpacing ?? 'normal';
+  const secOrder = content.sectionOrder   ?? ['hero', 'about', 'classes', 'enroll'];
+
   if (authLoading) return (
     <div className="fixed inset-0 flex items-center justify-center bg-gray-950">
       <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white animate-spin" />
@@ -43,94 +84,64 @@ export default function App() {
 
   return (
     <>
-      {/* Fondo dinámico */}
+      {/* Fondo */}
       {content.background.type === 'default' && (
-        <div
-          className="fixed inset-0 -z-10"
-          style={{
-            background: `linear-gradient(135deg, ${content.background.gradientStart} 0%, ${content.background.gradientEnd} 100%)`,
-          }}
-        />
+        <div className="fixed inset-0 -z-10"
+          style={{ background: `linear-gradient(135deg, ${content.background.gradientStart} 0%, ${content.background.gradientEnd} 100%)` }} />
       )}
       {content.background.type === 'image' && (
-        <div
-          className="fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: `url(${content.background.url})` }}
-        />
+        <div className="fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: `url(${content.background.url})` }} />
       )}
       {content.background.type === 'video' && (
-        <video
-          key={content.background.url}
+        <video key={content.background.url}
           className="fixed inset-0 -z-10 w-full h-full object-cover"
-          src={content.background.url}
-          autoPlay loop muted playsInline
-        />
+          src={content.background.url} autoPlay loop muted playsInline />
       )}
       {content.background.type !== 'default' && (
         <div className="fixed inset-0 bg-black/50" style={{ zIndex: -5 }} />
       )}
 
-      {/* Barra de admin */}
+      {/* Admin bar */}
       {isAdmin && (
-        <AdminBar
-          onSave={save}
-          onLogout={logout}
-          hasChanges={hasChanges}
-          spacing={spacing}
-          onSpacingChange={v => handleUpdate(['sectionSpacing'], v)}
-        />
+        <AdminBar onSave={save} onLogout={logout} hasChanges={hasChanges}
+          spacing={spacing} onSpacingChange={v => handleUpdate(['sectionSpacing'], v)} />
       )}
 
-      {/* Modal de login */}
       {showLoginModal && (
         <LoginModal onLogin={handleLogin} onClose={() => setShowLoginModal(false)} />
       )}
 
       {/* Header */}
-      <header className={`w-full px-4 sm:px-8 py-4 ${isAdmin ? 'mt-10' : ''}`}>
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+      <header className={`w-full px-4 sm:px-8 py-3 sm:py-4 ${isAdmin ? 'mt-12 sm:mt-10' : ''}`}>
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 sm:gap-4">
+          <LogoUploader logoUrl={content.logo}
+            onLogoChange={url => handleUpdate(['logo'], url)} isAdmin={isAdmin} />
 
-          <LogoUploader
-            logoUrl={content.logo}
-            onLogoChange={url => handleUpdate(['logo'], url)}
-            isAdmin={isAdmin}
-          />
-
-          <div className="text-center flex-1">
-            <EditableText
-              value={content.siteTitle}
+          <div className="text-center flex-1 min-w-0">
+            <EditableText value={content.siteTitle}
               onChange={v => handleUpdate(['siteTitle'], v)}
-              isAdmin={isAdmin}
-              tag="h1"
-              className="text-2xl sm:text-3xl font-bold text-white"
+              isAdmin={isAdmin} tag="h1"
+              className="text-xl sm:text-2xl lg:text-3xl font-bold text-white truncate"
               textStyle={content.siteTitleStyle}
-              onStyleChange={s => handleUpdate(['siteTitleStyle'], s)}
-            />
-            <EditableText
-              value={content.tagline}
+              onStyleChange={s => handleUpdate(['siteTitleStyle'], s)} />
+            <EditableText value={content.tagline}
               onChange={v => handleUpdate(['tagline'], v)}
-              isAdmin={isAdmin}
-              tag="p"
-              className="text-white/55 text-sm mt-0.5"
+              isAdmin={isAdmin} tag="p"
+              className="text-white/55 text-xs sm:text-sm mt-0.5 hidden sm:block"
               textStyle={content.taglineStyle}
-              onStyleChange={s => handleUpdate(['taglineStyle'], s)}
-            />
+              onStyleChange={s => handleUpdate(['taglineStyle'], s)} />
           </div>
 
-          <div className="flex items-center gap-2 w-40 justify-end">
+          <div className="flex items-center gap-2 shrink-0">
             {isAdmin && (
-              <BackgroundUploader
-                background={content.background}
-                onBackgroundChange={handleBackgroundChange}
-              />
+              <BackgroundUploader background={content.background}
+                onBackgroundChange={handleBackgroundChange} />
             )}
             {!isAdmin && (
-              <button
-                onClick={() => setShowLoginModal(true)}
+              <button onClick={() => setShowLoginModal(true)}
                 className="text-white/15 hover:text-white/40 text-lg leading-none transition-colors px-2 py-1"
-                title="Acceso administrador"
-                aria-label="Acceso administrador"
-              >
+                title="Acceso administrador" aria-label="Acceso administrador">
                 ···
               </button>
             )}
@@ -138,41 +149,75 @@ export default function App() {
         </div>
       </header>
 
-      {/* Contenido principal */}
+      {/* Secciones */}
       <main className="w-full flex-1">
-        <HeroSection
-          hero={content.hero}
-          isAdmin={isAdmin}
-          onUpdate={handleUpdate}
-          spacing={spacing}
-        />
-        <AboutSection
-          about={content.about}
-          isAdmin={isAdmin}
-          onUpdate={handleUpdate}
-          spacing={spacing}
-        />
-        <ClassesSection
-          classes={content.classes}
-          classesTitle={content.classesTitle}
-          classesTitleStyle={content.classesTitleStyle}
-          isAdmin={isAdmin}
-          onUpdate={handleUpdate}
-          spacing={spacing}
-        />
-        <EnrollSection
-          enrollButton={content.enrollButton}
-          isAdmin={isAdmin}
-          onUpdate={handleUpdate}
-          spacing={spacing}
-        />
+        {/* Primer botón agregar — antes de todo */}
+        {isAdmin && (
+          <SectionWrapper sectionId="_start" index={0} total={0} isAdmin={isAdmin} isCustom={false}
+            onMoveUp={() => {}} onMoveDown={() => {}} onDelete={() => {}}
+            onAddAfter={(type, defaults) => {
+              const id = `custom-${Date.now()}`;
+              const order = [id, ...content.sectionOrder];
+              updateContent(['customSections'], { ...content.customSections, [id]: { id, type, ...defaults } });
+              updateContent(['sectionOrder'], order);
+            }}
+          >
+            <div />
+          </SectionWrapper>
+        )}
+
+        {secOrder.map((sectionId, index) => {
+          const isCustom = !BUILTIN.has(sectionId);
+          const customData = isCustom ? content.customSections[sectionId] : null;
+
+          const wrapper = (children) => (
+            <SectionWrapper
+              key={sectionId}
+              sectionId={sectionId}
+              index={index}
+              total={secOrder.length}
+              isAdmin={isAdmin}
+              isCustom={isCustom}
+              onMoveUp={() => handleMove(sectionId, 'up')}
+              onMoveDown={() => handleMove(sectionId, 'down')}
+              onDelete={() => handleDeleteCustom(sectionId)}
+              onAddAfter={(type, defaults) => handleAddSection(sectionId, type, defaults)}
+            >
+              {children}
+            </SectionWrapper>
+          );
+
+          if (sectionId === 'hero') return wrapper(
+            <HeroSection hero={content.hero} isAdmin={isAdmin}
+              onUpdate={handleUpdate} spacing={spacing} />
+          );
+          if (sectionId === 'about') return wrapper(
+            <AboutSection about={content.about} isAdmin={isAdmin}
+              onUpdate={handleUpdate} spacing={spacing} />
+          );
+          if (sectionId === 'classes') return wrapper(
+            <ClassesSection classes={content.classes}
+              classesTitle={content.classesTitle || 'Clases'}
+              classesTitleStyle={content.classesTitleStyle}
+              isAdmin={isAdmin} onUpdate={handleUpdate} spacing={spacing} />
+          );
+          if (sectionId === 'enroll') return wrapper(
+            <EnrollSection enrollButton={content.enrollButton}
+              isAdmin={isAdmin} onUpdate={handleUpdate} spacing={spacing} />
+          );
+          if (isCustom && customData) return wrapper(
+            <CustomSectionRenderer
+              section={customData}
+              isAdmin={isAdmin}
+              onUpdate={(key, value) => handleUpdateCustom(sectionId, key, value)}
+            />
+          );
+          return null;
+        })}
       </main>
 
-      {/* Footer */}
-      <footer className="w-full px-6 py-8 text-center border-t border-white/10">
-        <p className="text-white/25 text-sm">
-          © {new Date().getFullYear()} {content.siteTitle}
-        </p>
+      <footer className="w-full px-6 py-6 sm:py-8 text-center border-t border-white/10">
+        <p className="text-white/25 text-sm">© {new Date().getFullYear()} {content.siteTitle}</p>
       </footer>
     </>
   );
