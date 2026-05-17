@@ -3,8 +3,9 @@ import { Carousel } from '../../ui/Carousel';
 import { EditableText } from '../../ui/EditableText';
 import { uploadToStorage } from '../../../lib/supabaseStorage';
 
-// Altura FIJA del contenedor — diferencia visible entre tamaños
-const IMG_H = { sm: 180, md: 300, lg: 480 };
+// Contenedor con altura fija + scale en la imagen para que S/M/L sean distintos
+const CONTAINER_H = 300; // px — fijo siempre
+const IMG_SCALE   = { sm: 0.58, md: 1.00, lg: 1.52 };
 const SIZE_LABELS = { sm: 'Pequeño', md: 'Normal', lg: 'Grande' };
 
 export function GalleryBlock({ section, isAdmin, onUpdate }) {
@@ -41,13 +42,10 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
             items={images}
             renderItem={(img) => (
               <div className="flex flex-col items-center gap-3">
-                {/* Contenedor de altura FIJA — foto completa con contain */}
+                {/* Contenedor fijo — la imagen se escala con transform */}
                 <div
                   className="w-full flex items-center justify-center rounded-xl overflow-hidden bg-black/15"
-                  style={{
-                    height: `${IMG_H[size]}px`,
-                    transition: 'height 300ms ease',
-                  }}
+                  style={{ height: `${CONTAINER_H}px` }}
                 >
                   <img
                     src={img.url}
@@ -56,6 +54,9 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
                       maxWidth: '100%',
                       maxHeight: '100%',
                       objectFit: 'contain',
+                      transform: `scale(${IMG_SCALE[size]})`,
+                      transformOrigin: 'center center',
+                      transition: 'transform 300ms ease',
                     }}
                   />
                 </div>
@@ -79,10 +80,17 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
           />
 
           {isAdmin && (
-            <div className="flex justify-center gap-1 mt-3">
+            <div className="flex justify-center gap-3 mt-2">
               {Object.entries(SIZE_LABELS).map(([s, label]) => (
-                <button key={s} onClick={() => onUpdate('size', s)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${size === s ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/70'}`}
+                <button
+                  key={s}
+                  onClick={() => onUpdate('size', s)}
+                  className="text-xs font-semibold transition-all"
+                  style={{
+                    color: size === s ? 'white' : 'rgba(255,255,255,0.4)',
+                    textShadow: '0 1px 4px rgba(0,0,0,0.7)',
+                    fontWeight: size === s ? 700 : 400,
+                  }}
                 >
                   {label}
                 </button>

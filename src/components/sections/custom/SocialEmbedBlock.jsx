@@ -98,23 +98,34 @@ export function SocialEmbedBlock({ section, isAdmin, onUpdate }) {
 
       {posts.length > 0 ? (
         <>
-          <Carousel
-            items={posts}
-            renderItem={(post) => <EmbedItem url={post.url} size={size} />}
-            emptyMessage="Sin publicaciones"
-          />
+          {/* Wrapper relativo para superponer los botones S/M/L */}
+          <div className="relative">
+            <Carousel
+              items={posts}
+              renderItem={(post) => <EmbedItem url={post.url} size={size} />}
+              emptyMessage="Sin publicaciones"
+            />
 
-          {isAdmin && (
-            <div className="flex justify-center gap-1 mt-3">
-              {Object.entries(SIZE_LABELS).map(([s, label]) => (
-                <button key={s} onClick={() => onUpdate('size', s)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${size === s ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/70'}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
+            {/* Botones superpuestos encima del carousel — sin contenedor ni borde */}
+            {isAdmin && (
+              <div className="absolute top-2 right-10 z-20 flex gap-2">
+                {Object.entries(SIZE_LABELS).map(([s, label]) => (
+                  <button
+                    key={s}
+                    onClick={() => onUpdate('size', s)}
+                    className="text-xs font-semibold transition-all"
+                    style={{
+                      color: size === s ? 'white' : 'rgba(255,255,255,0.4)',
+                      textShadow: size === s ? '0 1px 4px rgba(0,0,0,0.8)' : '0 1px 3px rgba(0,0,0,0.6)',
+                      fontWeight: size === s ? 700 : 400,
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </>
       ) : (
         <div className="glass rounded-xl p-8 text-center text-white/30">
