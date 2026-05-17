@@ -3,9 +3,14 @@ import { Carousel } from '../../ui/Carousel';
 import { EditableText } from '../../ui/EditableText';
 import { uploadToStorage } from '../../../lib/supabaseStorage';
 
-// objectFit: cover → la imagen SIEMPRE llena el contenedor
-// Al cambiar la altura del contenedor, la imagen visible crece/decrece realmente
-const IMG_H = { sm: 160, md: 280, lg: 440 };
+// sm: imagen al 62% del ancho → más chica, imagen completa
+// md: 100%, normal
+// lg: 74% ancho + zoom 1.35 → visualmente 100% del ancho pero 1.35x más grande en ambas dimensiones
+const SIZE_CFG = {
+  sm: { w: 62,  zoom: 1.00 },
+  md: { w: 100, zoom: 1.00 },
+  lg: { w: 74,  zoom: 1.35 },
+};
 const SIZE_LABELS = { sm: 'Pequeño', md: 'Normal', lg: 'Grande' };
 
 export function GalleryBlock({ section, isAdmin, onUpdate }) {
@@ -42,24 +47,21 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
             items={images}
             renderItem={(img) => (
               <div className="flex flex-col items-center gap-3">
-                {/* Contenedor con altura variable — cover llena siempre el espacio */}
-                <div
-                  className="w-full rounded-xl overflow-hidden"
-                  style={{
-                    height: `${IMG_H[size]}px`,
-                    transition: 'height 300ms ease',
-                  }}
-                >
-                  <img
-                    src={img.url}
-                    alt={img.caption || ''}
+                {/* Imagen completa visible, sin recorte, escalada por width+zoom */}
+                <div className="flex justify-center">
+                  <div
                     style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      objectPosition: 'center',
+                      width: `${SIZE_CFG[size].w}%`,
+                      zoom: SIZE_CFG[size].zoom,
+                      transition: 'width 300ms ease',
                     }}
-                  />
+                  >
+                    <img
+                      src={img.url}
+                      alt={img.caption || ''}
+                      className="block w-full h-auto rounded-xl shadow-xl"
+                    />
+                  </div>
                 </div>
 
                 {(img.caption || isAdmin) && (
