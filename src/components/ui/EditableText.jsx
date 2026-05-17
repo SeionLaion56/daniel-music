@@ -43,7 +43,20 @@ function extractFontName(fontFamily) {
   return m ? m[1].trim() : fontFamily;
 }
 
+// Solo letras, números, espacios y guiones (nombres válidos de Google Fonts)
+const SAFE_FONT_NAME_RE = /^[a-zA-Z0-9\s\-]{1,80}$/;
+
+// Solo valores CSS de font-family seguros
+const SAFE_FONT_FAMILY_RE = /^[a-zA-Z0-9\s"',\-]{1,200}$/;
+
+function sanitizeFontFamily(value) {
+  if (!value || typeof value !== 'string') return undefined;
+  if (!SAFE_FONT_FAMILY_RE.test(value)) return undefined;
+  return value;
+}
+
 function loadGoogleFont(fontName) {
+  if (!SAFE_FONT_NAME_RE.test(fontName.trim())) return; // Bloquear nombres inválidos
   const encoded = encodeURIComponent(fontName.trim()).replace(/%20/g, '+');
   const id = `gfont-${encoded}`;
   if (!document.getElementById(id)) {
@@ -95,7 +108,7 @@ export function EditableText({
   const inlineStyle = {
     textAlign:  textStyle?.align      || undefined,
     fontSize:   textStyle?.fontSize   || undefined,
-    fontFamily: textStyle?.fontFamily || undefined,
+    fontFamily: sanitizeFontFamily(textStyle?.fontFamily),
   };
   const inputStyle = { ...inlineStyle, color: 'white' };
 
@@ -264,6 +277,7 @@ export function EditableText({
             ref={inputRef}
             value={draft}
             rows={4}
+            maxLength={2000}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => { if (e.key === 'Escape') cancel(); }}
             className={`${className} w-full bg-white/10 border border-white/40 rounded-lg px-3 py-2 outline-none ring-2 ring-indigo-400/60 resize-none`}
@@ -274,6 +288,7 @@ export function EditableText({
             ref={inputRef}
             type="text"
             value={draft}
+            maxLength={300}
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => {
               if (e.key === 'Escape') cancel();

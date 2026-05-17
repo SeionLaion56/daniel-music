@@ -1,35 +1,45 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
+async function checkIsAdmin(session) {
+  if (!session) return false;
+  const { data } = await supabase
+    .from('admin_users')
+    .select('user_id')
+    .eq('user_id', session.user.id)
+    .single();
+  return !!data;
+}
+
 export function useAdmin() {
-  const [isAdmin, setIsAdmin]       = useState(false);
+  const [isAdmin, setIsAdmin]         = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
-    // Verificar sesión existente al montar
     supabase.auth.getSession()
-      .then(({ data: { session } }) => {
-        setIsAdmin(!!session);
+      .then(async ({ data: { session } }) => {
+        setIsAdmin(await checkIsAdmin(session));
       })
-      .catch(() => {
-        // Si Supabase falla, arrancamos como visitante normal
-        setIsAdmin(false);
-      })
-      .finally(() => {
-        setAuthLoading(false);
-      });
+      .catch(() => setIsAdmin(false))
+      .finally(() => setAuthLoading(false));
 
-    // Escuchar cambios de auth (login / logout)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setIsAdmin(!!session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
+      setIsAdmin(await checkIsAdmin(session));
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const login = useCallback(async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return !error;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error || !data.session) return false;
+    // Doble verificación: que sea un admin registrado
+    const isAdminUser = await checkIsAdmin(data.session);
+    if (!isAdminUser) {
+      await supabase.auth.signOut(); // Logout inmediato si no es admin
+      return false;
+    }
+    return true;
   }, []);
 
   const logout = useCallback(async () => {

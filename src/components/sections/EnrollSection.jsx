@@ -2,8 +2,19 @@ import { EditableText } from '../ui/EditableText';
 
 const SPACING = { compact: 'py-12', normal: 'py-24', spacious: 'py-36' };
 
+function isSafeUrl(url) {
+  if (!url?.trim()) return false;
+  try {
+    const parsed = new URL(url.trim());
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 export function EnrollSection({ enrollButton, isAdmin, onUpdate, spacing = 'normal' }) {
-  const hasUrl = enrollButton.url?.trim().length > 0;
+  const safeUrl = isSafeUrl(enrollButton.url) ? enrollButton.url.trim() : null;
+  const hasUrl = !!safeUrl;
 
   return (
     <section className={`px-6 ${SPACING[spacing]} text-center`}>
@@ -19,9 +30,9 @@ export function EnrollSection({ enrollButton, isAdmin, onUpdate, spacing = 'norm
         />
 
         <a
-          href={hasUrl ? enrollButton.url : undefined}
+          href={hasUrl ? safeUrl : undefined}
           target={hasUrl ? '_blank' : undefined}
-          rel="noopener noreferrer"
+          rel="noopener noreferrer nofollow"
           onClick={!hasUrl && !isAdmin ? e => e.preventDefault() : undefined}
           className="inline-block bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xl py-5 px-14 rounded-2xl shadow-lg shadow-indigo-500/30 transition-all hover:-translate-y-1 hover:shadow-indigo-500/50"
         >
