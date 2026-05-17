@@ -30,19 +30,27 @@ function getEmbedUrl(info) {
   }
 }
 
-const HEIGHTS = { instagram: 540, twitter: 420, facebook: 360 };
+const HEIGHTS = {
+  sm: { instagram: 400, twitter: 310, facebook: 260 },
+  md: { instagram: 530, twitter: 410, facebook: 350 },
+  lg: { instagram: 680, twitter: 540, facebook: 470 },
+};
+
 const PLATFORM_LABELS = { instagram: 'Instagram', twitter: 'X / Twitter', facebook: 'Facebook' };
 
-function EmbedItem({ url }) {
+const SIZE_LABELS = { sm: 'Pequeño', md: 'Normal', lg: 'Grande' };
+
+function EmbedItem({ url, size = 'md' }) {
   const info     = parseSocialUrl(url);
   const embedUrl = getEmbedUrl(info);
+  const heights  = HEIGHTS[size];
 
   if (!url) return (
-    <div className="w-full h-64 flex items-center justify-center text-white/30 text-sm">Sin URL</div>
+    <div className="flex items-center justify-center h-40 text-white/25 text-sm rounded-xl bg-white/5">Sin URL</div>
   );
 
   if (!embedUrl) return (
-    <div className="glass rounded-xl p-6 text-center mx-auto max-w-sm">
+    <div className="glass rounded-xl p-6 text-center">
       <p className="text-white/40 text-sm mb-2">No se puede previsualizar</p>
       <a href={url} target="_blank" rel="noopener noreferrer nofollow"
         className="text-indigo-400 text-xs break-all hover:underline">{url}</a>
@@ -50,20 +58,22 @@ function EmbedItem({ url }) {
   );
 
   return (
-    <div className="flex justify-center px-2">
-      <div className="w-full max-w-sm rounded-xl overflow-hidden shadow-2xl bg-white/5 border border-white/10">
-        <iframe
-          key={embedUrl}
-          src={embedUrl}
-          className="w-full"
-          style={{ height: `${HEIGHTS[info?.platform] || 480}px`, border: 'none' }}
-          frameBorder="0"
-          scrolling="no"
-          allowTransparency="true"
-          loading="lazy"
-          title={`Post de ${PLATFORM_LABELS[info?.platform] || 'redes'}`}
-        />
-      </div>
+    <div className="rounded-xl overflow-hidden shadow-2xl bg-white/5 border border-white/10">
+      <iframe
+        key={embedUrl + size}
+        src={embedUrl}
+        className="w-full"
+        style={{
+          height: `${heights[info?.platform] ?? 420}px`,
+          border: 'none',
+          transition: 'height 300ms ease',
+        }}
+        frameBorder="0"
+        scrolling="no"
+        allowTransparency="true"
+        loading="lazy"
+        title={`Post de ${PLATFORM_LABELS[info?.platform] || 'redes'}`}
+      />
     </div>
   );
 }
@@ -71,15 +81,15 @@ function EmbedItem({ url }) {
 export function SocialEmbedBlock({ section, isAdmin, onUpdate }) {
   const [newUrl, setNewUrl] = useState('');
 
-  // Compatibilidad con datos antiguos (url string → posts array)
   const posts = section.posts
     ?? (section.url ? [{ id: Date.now(), url: section.url }] : []);
+  const size = section.size ?? 'md';
 
   const addPost = () => {
     const url = newUrl.trim();
     if (!url) return;
     onUpdate('posts', [...posts, { id: Date.now(), url }]);
-    onUpdate('url', undefined); // limpiar campo legacy
+    onUpdate('url', undefined);
     setNewUrl('');
   };
 
@@ -90,44 +100,57 @@ export function SocialEmbedBlock({ section, isAdmin, onUpdate }) {
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4">
 
-      {/* Carousel de posts */}
+      {/* Carousel */}
       {posts.length > 0 ? (
         <Carousel
           items={posts}
-          renderItem={(post) => <EmbedItem url={post.url} />}
+          renderItem={(post) => <EmbedItem url={post.url} size={size} />}
           emptyMessage="Sin publicaciones"
         />
       ) : (
         <div className="glass rounded-xl p-8 text-center text-white/30">
           <div className="text-3xl mb-3">📲</div>
-          <p className="text-sm">
-            {isAdmin ? 'Agregá el link de un post para mostrarlo aquí' : 'Publicaciones de redes sociales'}
-          </p>
+          <p className="text-sm">{isAdmin ? 'Agregá el link de un post' : 'Publicaciones de redes sociales'}</p>
         </div>
       )}
 
-      {/* Panel admin: agregar y gestionar posts */}
+      {/* Control de tamaño — visible en todos los modos si hay posts */}
+      {posts.length > 0 && isAdmin && (
+        <div className="flex justify-center gap-1 mt-3">
+          {Object.entries(SIZE_LABELS).map(([s, label]) => (
+            <button
+              key={s}
+              onClick={() => onUpdate('size', s)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                size === s ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/70'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Panel admin */}
       {isAdmin && (
         <div className="mt-4 glass rounded-xl p-4 flex flex-col gap-3">
           <p className="text-white/50 text-xs font-medium uppercase tracking-wider">
-            Gestionar publicaciones ({posts.length})
+            Publicaciones ({posts.length})
           </p>
 
-          {/* Lista de posts existentes */}
           {posts.map((post, i) => (
             <div key={post.id} className="flex items-center gap-2 text-xs">
-              <span className="text-white/40 shrink-0">#{i + 1}</span>
-              <span className="text-white/60 truncate flex-1">{post.url || '—'}</span>
+              <span className="text-white/35 shrink-0">#{i + 1}</span>
+              <span className="text-white/55 truncate flex-1 min-w-0">{post.url || '—'}</span>
               <button
                 onClick={() => removePost(post.id)}
-                className="shrink-0 text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-400/10 transition-colors"
+                className="shrink-0 text-red-400/70 hover:text-red-400 px-2 py-1 rounded hover:bg-red-400/10 transition-colors"
               >
                 Quitar
               </button>
             </div>
           ))}
 
-          {/* Agregar nuevo */}
           <div className="flex gap-2 mt-1">
             <input
               type="url"

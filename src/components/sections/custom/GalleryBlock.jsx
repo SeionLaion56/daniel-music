@@ -1,15 +1,20 @@
 import { useId } from 'react';
 import { Carousel } from '../../ui/Carousel';
+import { EditableText } from '../../ui/EditableText';
 import { uploadToStorage } from '../../../lib/supabaseStorage';
+
+const IMG_HEIGHTS = { sm: '200px', md: '320px', lg: '500px' };
+const SIZE_LABELS  = { sm: 'Pequeño', md: 'Normal', lg: 'Grande' };
 
 export function GalleryBlock({ section, isAdmin, onUpdate }) {
   const id     = useId();
   const images = section.images ?? [];
+  const size   = section.size   ?? 'md';
 
-  const handleAddImage = async (e) => {
+  const handleAddImages = async (e) => {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
-    const uploaded = await Promise.all(
+    const results = await Promise.all(
       files.map(async file => {
         try {
           const url = await uploadToStorage(file);
@@ -17,7 +22,7 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
         } catch { return null; }
       })
     );
-    const valid = uploaded.filter(Boolean);
+    const valid = results.filter(Boolean);
     if (valid.length) onUpdate('images', [...images, ...valid]);
     e.target.value = '';
   };
@@ -26,27 +31,67 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
     onUpdate('images', images.filter(img => img.id !== imgId));
   };
 
+  const updateCaption = (imgId, caption) => {
+    onUpdate('images', images.map(img => img.id === imgId ? { ...img, caption } : img));
+  };
+
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4">
 
       {/* Carousel de fotos */}
       {images.length > 0 ? (
-        <Carousel
-          items={images}
-          renderItem={(img) => (
-            <div className="flex flex-col items-center gap-3 px-2">
-              <img
-                src={img.url}
-                alt={img.caption || ''}
-                className="w-full max-h-80 sm:max-h-96 object-cover rounded-xl shadow-xl"
-              />
-              {img.caption && (
-                <p className="text-white/50 text-sm italic text-center">{img.caption}</p>
-              )}
+        <>
+          <Carousel
+            items={images}
+            renderItem={(img) => (
+              <div className="flex flex-col gap-3">
+                <div
+                  className="overflow-hidden rounded-xl shadow-xl"
+                  style={{ height: IMG_HEIGHTS[size], transition: 'height 300ms ease' }}
+                >
+                  <img
+                    src={img.url}
+                    alt={img.caption || ''}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+
+                {/* Pie de foto editable */}
+                {(img.caption || isAdmin) && (
+                  <div className="text-center px-2">
+                    <EditableText
+                      value={img.caption || 'Pie de foto...'}
+                      onChange={v => updateCaption(img.id, v)}
+                      isAdmin={isAdmin}
+                      tag="p"
+                      className="text-white/50 text-sm italic"
+                      textStyle={section.captionStyle ?? {}}
+                      onStyleChange={s => onUpdate('captionStyle', s)}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+            emptyMessage="Sin fotos"
+          />
+
+          {/* Control de tamaño */}
+          {isAdmin && (
+            <div className="flex justify-center gap-1 mt-3">
+              {Object.entries(SIZE_LABELS).map(([s, label]) => (
+                <button
+                  key={s}
+                  onClick={() => onUpdate('size', s)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    size === s ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/70'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           )}
-          emptyMessage="Sin fotos"
-        />
+        </>
       ) : (
         <div className="glass rounded-xl p-8 text-center text-white/30">
           <div className="text-3xl mb-3">🖼️</div>
@@ -58,19 +103,14 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
       {isAdmin && (
         <div className="mt-4 glass rounded-xl p-4 flex flex-col gap-3">
           <p className="text-white/50 text-xs font-medium uppercase tracking-wider">
-            Fotos en la galería ({images.length})
+            Fotos ({images.length})
           </p>
 
-          {/* Miniaturas con botón eliminar */}
           {images.length > 0 && (
-            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+            <div className="grid grid-cols-5 sm:grid-cols-7 gap-2">
               {images.map((img) => (
                 <div key={img.id} className="relative group/thumb aspect-square">
-                  <img
-                    src={img.url}
-                    alt=""
-                    className="w-full h-full object-cover rounded-lg"
-                  />
+                  <img src={img.url} alt="" className="w-full h-full object-cover rounded-lg" />
                   <button
                     onClick={() => removeImage(img.id)}
                     className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-red-600/80 hover:bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity"
@@ -80,17 +120,15 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
             </div>
           )}
 
-          {/* Agregar fotos */}
           <label htmlFor={id}
             className="flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80 text-sm cursor-pointer transition-all"
           >
             <span className="text-lg">+</span> Agregar fotos
             <input
-              id={id}
-              type="file"
+              id={id} type="file"
               accept="image/png,image/jpeg,image/webp"
               multiple
-              onChange={handleAddImage}
+              onChange={handleAddImages}
               className="hidden"
             />
           </label>
