@@ -3,8 +3,8 @@ import { Carousel } from '../../ui/Carousel';
 import { EditableText } from '../../ui/EditableText';
 import { uploadToStorage } from '../../../lib/supabaseStorage';
 
-// object-fit: contain → imagen completa siempre visible, sin corte
-const IMG_MAX_H = { sm: '180px', md: '310px', lg: '490px' };
+// Altura FIJA del contenedor — diferencia visible entre tamaños
+const IMG_H = { sm: 180, md: 300, lg: 480 };
 const SIZE_LABELS = { sm: 'Pequeño', md: 'Normal', lg: 'Grande' };
 
 export function GalleryBlock({ section, isAdmin, onUpdate }) {
@@ -28,13 +28,9 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
     e.target.value = '';
   };
 
-  const removeImage = (imgId) => {
-    onUpdate('images', images.filter(img => img.id !== imgId));
-  };
-
-  const updateCaption = (imgId, caption) => {
+  const removeImage  = (imgId) => onUpdate('images', images.filter(img => img.id !== imgId));
+  const updateCaption = (imgId, caption) =>
     onUpdate('images', images.map(img => img.id === imgId ? { ...img, caption } : img));
-  };
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4">
@@ -45,27 +41,25 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
             items={images}
             renderItem={(img) => (
               <div className="flex flex-col items-center gap-3">
-                {/* Imagen con contain: siempre se ve entera, sin corte */}
+                {/* Contenedor de altura FIJA — foto completa con contain */}
                 <div
-                  className="w-full flex items-center justify-center rounded-xl overflow-hidden bg-black/20"
+                  className="w-full flex items-center justify-center rounded-xl overflow-hidden bg-black/15"
                   style={{
-                    maxHeight: IMG_MAX_H[size],
-                    transition: 'max-height 300ms ease',
+                    height: `${IMG_H[size]}px`,
+                    transition: 'height 300ms ease',
                   }}
                 >
                   <img
                     src={img.url}
                     alt={img.caption || ''}
-                    className="w-full rounded-xl shadow-xl"
                     style={{
-                      maxHeight: IMG_MAX_H[size],
+                      maxWidth: '100%',
+                      maxHeight: '100%',
                       objectFit: 'contain',
-                      transition: 'max-height 300ms ease',
                     }}
                   />
                 </div>
 
-                {/* Pie de foto editable */}
                 {(img.caption || isAdmin) && (
                   <div className="w-full text-center px-2">
                     <EditableText
@@ -84,16 +78,11 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
             emptyMessage="Sin fotos"
           />
 
-          {/* Control de tamaño */}
           {isAdmin && (
             <div className="flex justify-center gap-1 mt-3">
               {Object.entries(SIZE_LABELS).map(([s, label]) => (
-                <button
-                  key={s}
-                  onClick={() => onUpdate('size', s)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    size === s ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/70'
-                  }`}
+                <button key={s} onClick={() => onUpdate('size', s)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${size === s ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/70'}`}
                 >
                   {label}
                 </button>
@@ -108,12 +97,9 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
         </div>
       )}
 
-      {/* Panel admin */}
       {isAdmin && (
         <div className="mt-4 glass rounded-xl p-4 flex flex-col gap-3">
-          <p className="text-white/50 text-xs font-medium uppercase tracking-wider">
-            Fotos ({images.length})
-          </p>
+          <p className="text-white/50 text-xs font-medium uppercase tracking-wider">Fotos ({images.length})</p>
 
           {images.length > 0 && (
             <div className="grid grid-cols-5 sm:grid-cols-7 gap-2">
@@ -130,8 +116,7 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
           )}
 
           <label htmlFor={id}
-            className="flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80 text-sm cursor-pointer transition-all"
-          >
+            className="flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 text-white/50 hover:text-white/80 text-sm cursor-pointer transition-all">
             <span className="text-lg">+</span> Agregar fotos
             <input id={id} type="file" accept="image/png,image/jpeg,image/webp"
               multiple onChange={handleAddImages} className="hidden" />

@@ -30,48 +30,38 @@ function getEmbedUrl(info) {
   }
 }
 
-// Altura base del iframe por plataforma (tamaño natural del embed)
-const BASE_H = { instagram: 530, twitter: 430, facebook: 370 };
+const BASE_H = { instagram: 560, twitter: 450, facebook: 400 };
 const PLATFORM_LABELS = { instagram: 'Instagram', twitter: 'X / Twitter', facebook: 'Facebook' };
 
-// Scale real: el iframe se renderiza a tamaño natural y se hace zoom con CSS
-const SCALES = { sm: 0.65, md: 1.0, lg: 1.38 };
+// zoom CSS reescala TODO el post sin cortar — el contenedor se adapta solo
+const ZOOM = { sm: 0.62, md: 1.0, lg: 1.35 };
 const SIZE_LABELS = { sm: 'Pequeño', md: 'Normal', lg: 'Grande' };
 
 function EmbedItem({ url, size = 'md' }) {
   const info     = parseSocialUrl(url);
   const embedUrl = getEmbedUrl(info);
-  const scale    = SCALES[size] ?? 1;
-  const baseH    = BASE_H[info?.platform] ?? 460;
+  const zoom     = ZOOM[size] ?? 1;
+  const baseH    = BASE_H[info?.platform] ?? 480;
 
   if (!url) return (
-    <div className="flex items-center justify-center h-36 text-white/25 text-sm rounded-xl bg-white/5">Sin URL</div>
+    <div className="flex items-center justify-center h-32 text-white/25 text-sm rounded-xl bg-white/5">Sin URL</div>
   );
 
   if (!embedUrl) return (
     <div className="glass rounded-xl p-5 text-center">
-      <p className="text-white/40 text-sm mb-2">No se puede previsualizar este enlace</p>
+      <p className="text-white/40 text-sm mb-2">No se puede previsualizar</p>
       <a href={url} target="_blank" rel="noopener noreferrer nofollow"
         className="text-indigo-400 text-xs break-all hover:underline">{url}</a>
     </div>
   );
 
-  // El contenedor tiene la altura visual (baseH * scale)
-  // El iframe se escala dentro con transform, sin que se corte el contenido
-  const containerH = Math.round(baseH * scale);
-
   return (
-    <div
-      className="rounded-xl overflow-hidden shadow-2xl bg-white/5 border border-white/10"
-      style={{ height: `${containerH}px` }}
-    >
-      <div style={{
-        transform: `scale(${scale})`,
-        transformOrigin: 'top left',
-        // Para que el iframe llene el ancho del contenedor tras el scale
-        width: `${(100 / scale).toFixed(2)}%`,
-        height: `${baseH}px`,
-      }}>
+    <div className="rounded-xl overflow-hidden shadow-2xl bg-white/5 border border-white/10">
+      {/*
+        CSS zoom reescala el elemento Y su layout completo.
+        El iframe se ve más pequeño/grande pero sin corte.
+      */}
+      <div style={{ zoom }}>
         <iframe
           key={embedUrl + size}
           src={embedUrl}
@@ -94,17 +84,14 @@ export function SocialEmbedBlock({ section, isAdmin, onUpdate }) {
     ?? (section.url ? [{ id: Date.now(), url: section.url }] : []);
   const size = section.size ?? 'md';
 
-  const addPost = () => {
+  const addPost    = () => {
     const url = newUrl.trim();
     if (!url) return;
     onUpdate('posts', [...posts, { id: Date.now(), url }]);
     onUpdate('url', undefined);
     setNewUrl('');
   };
-
-  const removePost = (id) => {
-    onUpdate('posts', posts.filter(p => p.id !== id));
-  };
+  const removePost = (id) => onUpdate('posts', posts.filter(p => p.id !== id));
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4">
@@ -117,16 +104,11 @@ export function SocialEmbedBlock({ section, isAdmin, onUpdate }) {
             emptyMessage="Sin publicaciones"
           />
 
-          {/* Control de tamaño */}
           {isAdmin && (
             <div className="flex justify-center gap-1 mt-3">
               {Object.entries(SIZE_LABELS).map(([s, label]) => (
-                <button
-                  key={s}
-                  onClick={() => onUpdate('size', s)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    size === s ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/70'
-                  }`}
+                <button key={s} onClick={() => onUpdate('size', s)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${size === s ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white/70'}`}
                 >
                   {label}
                 </button>
@@ -141,29 +123,23 @@ export function SocialEmbedBlock({ section, isAdmin, onUpdate }) {
         </div>
       )}
 
-      {/* Panel admin */}
       {isAdmin && (
         <div className="mt-4 glass rounded-xl p-4 flex flex-col gap-3">
-          <p className="text-white/50 text-xs font-medium uppercase tracking-wider">
-            Publicaciones ({posts.length})
-          </p>
+          <p className="text-white/50 text-xs font-medium uppercase tracking-wider">Publicaciones ({posts.length})</p>
 
           {posts.map((post, i) => (
             <div key={post.id} className="flex items-center gap-2 text-xs">
               <span className="text-white/35 shrink-0">#{i + 1}</span>
               <span className="text-white/55 truncate flex-1 min-w-0">{post.url || '—'}</span>
-              <button
-                onClick={() => removePost(post.id)}
-                className="shrink-0 text-red-400/70 hover:text-red-400 px-2 py-1 rounded hover:bg-red-400/10 transition-colors"
-              >
+              <button onClick={() => removePost(post.id)}
+                className="shrink-0 text-red-400/70 hover:text-red-400 px-2 py-1 rounded hover:bg-red-400/10 transition-colors">
                 Quitar
               </button>
             </div>
           ))}
 
           <div className="flex gap-2 mt-1">
-            <input
-              type="url"
+            <input type="url"
               placeholder="Link de Instagram, X/Twitter o Facebook..."
               value={newUrl}
               onChange={e => setNewUrl(e.target.value)}
@@ -171,10 +147,8 @@ export function SocialEmbedBlock({ section, isAdmin, onUpdate }) {
               className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white text-sm outline-none focus:ring-2 focus:ring-indigo-400/60 placeholder:text-white/25 min-w-0"
               style={{ color: 'white' }}
             />
-            <button
-              onClick={addPost}
-              className="shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
-            >
+            <button onClick={addPost}
+              className="shrink-0 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
               Agregar
             </button>
           </div>
