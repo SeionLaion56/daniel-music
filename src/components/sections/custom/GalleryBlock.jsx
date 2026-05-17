@@ -3,14 +3,11 @@ import { Carousel } from '../../ui/Carousel';
 import { EditableText } from '../../ui/EditableText';
 import { uploadToStorage } from '../../../lib/supabaseStorage';
 
-// sm: imagen al 62% del ancho → más chica, imagen completa
-// md: 100%, normal
-// lg: 74% ancho + zoom 1.35 → visualmente 100% del ancho pero 1.35x más grande en ambas dimensiones
-const SIZE_CFG = {
-  sm: { w: 62,  zoom: 1.00 },
-  md: { w: 100, zoom: 1.00 },
-  lg: { w: 74,  zoom: 1.35 },
-};
+// sm: imagen al 62% del ancho del carousel → aparece pequeña, imagen completa
+// md: 100% del carousel normal
+// lg: el CONTENEDOR del carousel es más ancho → las imágenes llenan más espacio → aparecen grandes
+const IMG_W   = { sm: '62%', md: '100%', lg: '100%' };
+const WRAP_W  = { sm: 'max-w-2xl', md: 'max-w-2xl', lg: 'max-w-4xl' };
 const SIZE_LABELS = { sm: 'Pequeño', md: 'Normal', lg: 'Grande' };
 
 export function GalleryBlock({ section, isAdmin, onUpdate }) {
@@ -34,12 +31,13 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
     e.target.value = '';
   };
 
-  const removeImage  = (imgId) => onUpdate('images', images.filter(img => img.id !== imgId));
+  const removeImage   = (imgId) => onUpdate('images', images.filter(img => img.id !== imgId));
   const updateCaption = (imgId, caption) =>
     onUpdate('images', images.map(img => img.id === imgId ? { ...img, caption } : img));
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4">
+    /* El wrapper cambia de ancho según el tamaño — las fotos se ven más grandes/chicas */
+    <div className={`${WRAP_W[size]} mx-auto px-4 sm:px-6 py-4 transition-all duration-300`}>
 
       {images.length > 0 ? (
         <>
@@ -47,21 +45,17 @@ export function GalleryBlock({ section, isAdmin, onUpdate }) {
             items={images}
             renderItem={(img) => (
               <div className="flex flex-col items-center gap-3">
-                {/* Imagen completa visible, sin recorte, escalada por width+zoom */}
-                <div className="flex justify-center">
-                  <div
+                {/* Imagen centrada, ancho variable, sin recorte */}
+                <div className="flex justify-center w-full">
+                  <img
+                    src={img.url}
+                    alt={img.caption || ''}
+                    className="block h-auto rounded-xl shadow-xl"
                     style={{
-                      width: `${SIZE_CFG[size].w}%`,
-                      zoom: SIZE_CFG[size].zoom,
+                      width: IMG_W[size],
                       transition: 'width 300ms ease',
                     }}
-                  >
-                    <img
-                      src={img.url}
-                      alt={img.caption || ''}
-                      className="block w-full h-auto rounded-xl shadow-xl"
-                    />
-                  </div>
+                  />
                 </div>
 
                 {(img.caption || isAdmin) && (
