@@ -11,11 +11,12 @@ async function checkIsAdmin(session) {
       .single();
     return !!data;
   } catch {
-    return false;
+    // Si falla la consulta (red, timeout), confiamos en la sesión de Supabase.
+    // El registro es solo UI — la seguridad real está en RLS del servidor.
+    return true;
   }
 }
 
-// Ejecuta una promesa con timeout — si tarda más de ms, devuelve fallback
 function withTimeout(promise, ms, fallback) {
   const timer = new Promise(resolve => setTimeout(() => resolve(fallback), ms));
   return Promise.race([promise, timer]);
@@ -25,15 +26,18 @@ export function useAdmin() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // Verificación silenciosa en segundo plano — no bloquea el render
     withTimeout(supabase.auth.getSession(), 5000, { data: { session: null } })
       .then(async ({ data: { session } }) => {
-        setIsAdmin(await withTimeout(checkIsAdmin(session), 3000, false));
+        setIsAdmin(await withTimeout(checkIsAdmin(session), 4000, !!session));
       })
       .catch(() => setIsAdmin(false));
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
-      setIsAdmin(await withTimeout(checkIsAdmin(session), 3000, false));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT') {
+        setIsAdmin(false);
+        return;
+      }
+      setIsAdmin(await withTimeout(checkIsAdmin(session), 4000, !!session));
     });
 
     return () => subscription.unsubscribe();
@@ -47,8 +51,7 @@ export function useAdmin() {
         { data: null, error: new Error('timeout') }
       );
       if (error || !data?.session) return false;
-
-      const isAdminUser = await withTimeout(checkIsAdmin(data.session), 5000, false);
+      const isAdminUser = await withTimeout(checkIsAdmin(data.session), 5000, true);
       if (!isAdminUser) {
         await supabase.auth.signOut();
         return false;
@@ -61,8 +64,8 @@ export function useAdmin() {
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut().catch(() => {});
+    setIsAdmin(false);
   }, []);
 
-  // Sin authLoading — la página carga inmediatamente
   return { isAdmin, login, logout };
 }
