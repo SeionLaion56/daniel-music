@@ -18,7 +18,7 @@ import './App.css';
 const BUILTIN_IDS = new Set(['hero', 'about', 'classes', 'enroll']);
 
 export default function App() {
-  const { isAdmin, login, logout, authLoading } = useAdmin();
+  const { isAdmin, login, logout } = useAdmin();
   const { content, updateContent, save, hasChanges } = useSiteContent();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showAddModal, setShowAddModal]     = useState(false);
@@ -83,13 +83,6 @@ export default function App() {
 
   // Secciones fijas que están ocultas (no están en el orden)
   const hiddenBuiltins = ['hero', 'about', 'classes', 'enroll'].filter(id => !secOrder.includes(id));
-
-  // ── Return condicional DESPUÉS de todos los hooks ─────────────────────────
-  if (authLoading) return (
-    <div className="fixed inset-0 flex items-center justify-center bg-gray-950">
-      <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white animate-spin" />
-    </div>
-  );
 
   return (
     <>

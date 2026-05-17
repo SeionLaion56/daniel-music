@@ -15,48 +15,54 @@ async function checkIsAdmin(session) {
   }
 }
 
+// Ejecuta una promesa con timeout — si tarda más de ms, devuelve fallback
+function withTimeout(promise, ms, fallback) {
+  const timer = new Promise(resolve => setTimeout(() => resolve(fallback), ms));
+  return Promise.race([promise, timer]);
+}
+
 export function useAdmin() {
-  const [isAdmin, setIsAdmin]         = useState(false);
-  const [authLoading, setAuthLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // Timeout de seguridad: si Supabase no responde en 4s, mostramos el sitio igual
-    const timeout = setTimeout(() => setAuthLoading(false), 4000);
-
-    supabase.auth.getSession()
+    // Verificación silenciosa en segundo plano — no bloquea el render
+    withTimeout(supabase.auth.getSession(), 5000, { data: { session: null } })
       .then(async ({ data: { session } }) => {
-        setIsAdmin(await checkIsAdmin(session));
+        setIsAdmin(await withTimeout(checkIsAdmin(session), 3000, false));
       })
-      .catch(() => setIsAdmin(false))
-      .finally(() => {
-        clearTimeout(timeout);
-        setAuthLoading(false);
-      });
+      .catch(() => setIsAdmin(false));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
-      setIsAdmin(await checkIsAdmin(session));
+      setIsAdmin(await withTimeout(checkIsAdmin(session), 3000, false));
     });
 
-    return () => {
-      clearTimeout(timeout);
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = useCallback(async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error || !data.session) return false;
-    const isAdminUser = await checkIsAdmin(data.session);
-    if (!isAdminUser) {
-      await supabase.auth.signOut();
+    try {
+      const { data, error } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        8000,
+        { data: null, error: new Error('timeout') }
+      );
+      if (error || !data?.session) return false;
+
+      const isAdminUser = await withTimeout(checkIsAdmin(data.session), 5000, false);
+      if (!isAdminUser) {
+        await supabase.auth.signOut();
+        return false;
+      }
+      return true;
+    } catch {
       return false;
     }
-    return true;
   }, []);
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut().catch(() => {});
   }, []);
 
-  return { isAdmin, login, logout, authLoading };
+  // Sin authLoading — la página carga inmediatamente
+  return { isAdmin, login, logout };
 }
